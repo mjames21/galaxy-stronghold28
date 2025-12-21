@@ -1,11 +1,16 @@
 <?php
 
+// app/Models/District.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class District extends Model {
-    protected $fillable = ['region_id','name','code','geojson','seats'];
-    public function region(){ return $this->belongsTo(Region::class); }
-    public function pollingStations(){ return $this->hasMany(PollingStation::class); }
+class District extends Model
+{
+    protected $fillable = ['name', 'code', 'region'];
+
+    public function populations()
+    {
+        return $this->hasMany(DistrictPopulation::class);
+    }
 }

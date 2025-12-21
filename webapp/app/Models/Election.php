@@ -1,15 +1,21 @@
 <?php
 
+// app/Models/Election.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
 class Election extends Model
 {
-    protected $fillable = ['name','slug','election_date','description','team_id'];
+    protected $fillable = [
+        'name',
+        'slug',
+        'election_date',
+        'type',
+        'round',
+    ];
 
-    public function results(){ return $this->hasMany(Result::class); }
-    public function forecastRuns(){ return $this->hasMany(ForecastRun::class); }
-    public function scenarios(){ return $this->hasMany(Scenario::class); }
-    public function verifications(){ return $this->hasMany(Verification::class); }
+    protected $casts = [
+        'election_date' => 'date',
+    ];
 }

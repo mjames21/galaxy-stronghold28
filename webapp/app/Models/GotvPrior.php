@@ -4,21 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Result extends Model
+class GotvPrior extends Model
 {
     protected $fillable = [
         'election_id',
         'district_id',
-        'polling_station_id',
-        'party_id',
-        'votes',
-        'turnout',
-        'registered',
-        'meta',
+        'alpha',
+        'beta',
+        'baseline_alpha',
+        'baseline_beta',
     ];
 
     protected $casts = [
-        'meta' => 'array',
+        'alpha' => 'float',
+        'beta' => 'float',
+        'baseline_alpha' => 'float',
+        'baseline_beta' => 'float',
     ];
 
     public function election()
@@ -29,15 +30,5 @@ class Result extends Model
     public function district()
     {
         return $this->belongsTo(District::class);
-    }
-
-    public function pollingStation()
-    {
-        return $this->belongsTo(PollingStation::class);
-    }
-
-    public function party()
-    {
-        return $this->belongsTo(Party::class);
     }
 }

@@ -1,243 +1,226 @@
-{{-- resources/views/livewire/forecast-engine/index.blade.php --}}
-<div class="w-full md:grid md:grid-cols-12 gap-6"><!-- ensure 2-col at md+ -->
+<div class="w-full md:grid md:grid-cols-12 gap-6">
 
-  {{-- ================= Left: Inputs + Results ================= --}}
+  {{-- Left --}}
   <section class="md:col-span-8 space-y-6">
-    {{-- Place this right before the "Inputs" card --}}
-<header class="space-y-3">
-  <h1 class="text-2xl font-semibold">Forecast Engine</h1>
 
-  {{-- One-line summary --}}
-  <p class="text-slate-600">
-    Simulate thousands of possible elections and summarize the likely vote shares and turnout.
-  </p>
-
-  {{-- Context row: election + live params --}}
-  @php
-    $currentElection = collect($elections ?? [])->firstWhere('id', $electionId);
-  @endphp
-  <div class="flex flex-wrap items-center gap-2 text-xs">
-    @if($currentElection)
-      <span class="rounded-full border px-2.5 py-1 bg-white text-slate-700">
-        Election: {{ $currentElection['name'] }}
-      </span>
-    @endif
-    <span class="rounded-full border px-2.5 py-1 bg-white text-slate-700">
-      Monte Carlo (N): {{ number_format($simulations ?? 0) }}
-    </span>
-    <span class="rounded-full border px-2.5 py-1 bg-white text-slate-700">
-      Alpha (α): {{ rtrim(rtrim(number_format($alphaSmoothing ?? 0, 2, '.', ''), '0'), '.') }}
-    </span>
-  </div>
-
-  {{-- Optional: compact explainer --}}
-  <details class="group">
-    <summary class="cursor-pointer text-indigo-600 text-sm">What does this do?</summary>
-    <div class="mt-2 text-sm text-slate-600 space-y-2">
-      <p><span class="font-medium">Monte Carlo (N):</span> how many random runs we simulate. More runs → smoother, more stable averages (but slower).</p>
-      <p><span class="font-medium">Alpha (α):</span> stability knob for party shares in the Dirichlet model.
-         Higher α → shares vary less between runs; lower α → more volatility.</p>
-      <ol class="list-decimal pl-5 space-y-1">
-        <li>Draw party shares from <span class="font-medium">Dirichlet(α)</span> (they always sum to 100%).</li>
-        <li>Draw turnout from a <span class="font-medium">Beta</span> distribution (between 0 and 1).</li>
-        <li>Repeat <span class="font-medium">N</span> times; report means and (optionally) intervals.</li>
-      </ol>
-    </div>
-  </details>
-</header>
-
+    <header class="space-y-2">
+      <h1 class="text-2xl font-semibold">Forecast Engine</h1>
+      <p class="text-sm text-slate-600">
+        District-level model. Two-party (SLPP/APC) simulation with turnout derived from population census denominators.
+      </p>
+    </header>
 
     {{-- Inputs --}}
-    <div class="rounded border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
-      <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">Inputs</h2>
+    <div class="rounded border bg-white p-5 shadow-sm space-y-4">
 
       <div class="grid gap-4 md:grid-cols-4">
-        {{-- Election --}}
+
         <div class="md:col-span-2">
-          <label for="election" class="block text-sm font-medium text-slate-600 dark:text-gray-400">Election</label>
-          <select id="election" wire:model="electionId"
-                  class="mt-1 w-full rounded border px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+          <label class="block text-sm font-medium text-slate-700">Anchor Election</label>
+          <select wire:model="electionId" class="mt-1 w-full rounded border px-3 py-2">
             @foreach($elections as $e)
               <option value="{{ $e['id'] }}">{{ $e['name'] }}</option>
             @endforeach
           </select>
-          <p class="mt-1 text-xs text-slate-500 dark:text-gray-400">Choose the dataset (parties, priors, turnout).</p>
+          <p class="mt-1 text-xs text-slate-500">
+            Pooled mode will use elections of the <b>same type</b> as this election (time-decayed).
+          </p>
           @error('electionId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
-        {{-- Monte Carlo N --}}
         <div>
-          <label for="sims" class="block text-sm font-medium text-slate-600 dark:text-gray-400">Monte Carlo Runs (N)</label>
-          <input id="sims" type="number" min="100" step="100" wire:model.lazy="simulations"
-                 class="mt-1 w-full rounded border px-3 py-2 dark:border-gray-700 dark:bg-gray-800" />
-                 <p class="mt-1 text-xs text-slate-500 dark:text-gray-400">How many random simulations to run (more = smoother, slower).</p>
-          @error('simulations') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+          <label class="block text-sm font-medium text-slate-700">Scope</label>
+          <select wire:model="scopeMode" class="mt-1 w-full rounded border px-3 py-2">
+            <option value="single">Single election</option>
+            <option value="pooled">Pooled (same type)</option>
+          </select>
         </div>
 
-        {{-- Alpha (tooltip + optional slider) --}}
-        <div x-data="{ open:false }" class="relative">
-          <div class="flex items-center justify-between">
-            <label for="alpha" class="block text-sm font-medium text-slate-600 dark:text-gray-400">
-              Alpha (Dirichlet smoothing, α)
-            </label>
-            <button type="button"
-                    class="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs text-slate-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                    @mouseenter="open=true" @mouseleave="open=false" @focus="open=true" @blur="open=false"
-                    aria-describedby="alpha-help" aria-label="What is alpha?">?
-            </button>
-          </div>
-
-          {{-- Slider (optional UX; bound to same model) --}}
-          <input type="range" min="0.1" max="5" step="0.1"
-                 wire:model.lazy="alphaSmoothing"
-                 class="mt-2 w-full accent-indigo-600" />
-
-          {{-- Numeric input --}}
-          <input id="alpha" type="number" min="0.1" max="10" step="0.1" wire:model.lazy="alphaSmoothing"
-                 class="mt-2 w-28 rounded border px-3 py-2 dark:border-gray-700 dark:bg-gray-800" />
-          <p class="mt-1 text-xs text-slate-500 dark:text-gray-400">Use 0.5–2.0 for most runs. Default α = 1.0.</p>
-
-          {{-- Tooltip --}}
-          <div x-cloak x-show="open"
-               class="absolute right-0 z-10 mt-1 w-72 rounded border bg-white p-3 text-xs shadow-lg dark:border-gray-800 dark:bg-gray-900"
-               role="tooltip" id="alpha-help">
-            <p class="font-medium">Alpha (α) explained</p>
-            <ul class="mt-1 list-disc pl-4">
-              <li>Controls how <em>stable</em> party shares are in each draw.</li>
-              <li>Higher α ⇒ shares vary less (smoother); lower α ⇒ more volatile.</li>
-              <li>It feeds the Dirichlet distribution used for party shares.</li>
-            </ul>
-          </div>
-           <p class="mt-1 text-xs text-slate-500 dark:text-gray-400">Controls share stability. Start at <b>α = 1.0</b> (typical range 0.5–2.0).</p>
-
-
-          @error('alphaSmoothing') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Breakdown</label>
+          <select wire:model="breakdown" class="mt-1 w-full rounded border px-3 py-2">
+            <option value="district">District</option>
+            <option value="national">National</option>
+          </select>
         </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Monte Carlo (N)</label>
+          <input type="number" min="200" step="100" wire:model.lazy="simulations"
+                 class="mt-1 w-full rounded border px-3 py-2" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Alpha smoothing (α)</label>
+          <input type="number" min="0.1" step="0.1" wire:model.lazy="alphaSmoothing"
+                 class="mt-1 w-full rounded border px-3 py-2" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Turnout census year</label>
+          <select wire:model="turnoutCensusYear" class="mt-1 w-full rounded border px-3 py-2">
+            @foreach(($populationYears ?? []) as $y)
+              <option value="{{ $y }}">{{ $y }}</option>
+            @endforeach
+          </select>
+          @error('turnoutCensusYear') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">Turnout denominator</label>
+          <select wire:model="turnoutField" class="mt-1 w-full rounded border px-3 py-2">
+            <option value="population_18_plus">Population 18+</option>
+            <option value="total_population">Total population</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700">District (optional)</label>
+          <select wire:model="selectedDistrictId" class="mt-1 w-full rounded border px-3 py-2">
+            <option value="">All districts</option>
+            @foreach(($districtOptions ?? []) as $d)
+              <option value="{{ $d['id'] }}">{{ $d['name'] }}</option>
+            @endforeach
+          </select>
+        </div>
+
       </div>
 
-      <div class="flex items-center gap-2">
+      @if($scopeMode === 'pooled')
+        <div class="grid md:grid-cols-2 gap-4 pt-2">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Decay half-life (years)</label>
+            <input type="number" min="0.5" step="0.5" wire:model.lazy="decayHalfLifeYears"
+                   class="mt-1 w-full rounded border px-3 py-2" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Anchor date</label>
+            <input type="date" wire:model.lazy="anchorDate"
+                   class="mt-1 w-full rounded border px-3 py-2" />
+          </div>
+        </div>
+      @endif
+
+      <div class="flex items-center gap-2 pt-2">
         <button wire:click="run"
-                class="rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-60"
-                wire:loading.attr="disabled" wire:target="run">
-          <span wire:loading.remove wire:target="run">Run Simulation</span>
-          <span wire:loading wire:target="run">Running…</span>
+                wire:loading.attr="disabled"
+                class="rounded bg-slate-900 px-4 py-2 text-white hover:bg-slate-800 disabled:opacity-50">
+          <span wire:loading.remove>Run Simulation</span>
+          <span wire:loading>Running…</span>
         </button>
+
         <button wire:click="resetSim"
-                class="rounded bg-gray-200 px-4 py-2 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700">
+                class="rounded bg-gray-100 px-4 py-2 hover:bg-gray-200">
           Reset
         </button>
+
+        @if(($output['breakdown'] ?? null) === 'district')
+          <button wire:click="exportDistrictCsv"
+                  class="ml-auto rounded border px-4 py-2 hover:bg-gray-50">
+            Export CSV
+          </button>
+        @endif
       </div>
     </div>
 
     {{-- Results --}}
     @if($output)
-      <div class="rounded border bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h2 class="text-base font-semibold text-slate-800 dark:text-gray-100">
-          Results — {{ number_format($simulations) }} Monte Carlo runs
-        </h2>
-        <p class="text-sm text-slate-600 dark:text-gray-400">National Mean Estimates</p>
-
-        <div class="mt-4 grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          @foreach($output['national_mean'] as $party => $share)
-            <div class="rounded border bg-gray-50 p-3 dark:bg-gray-800">
-              <div class="text-sm text-slate-600 dark:text-gray-400">{{ $party }}</div>
-              <div class="text-xl font-semibold">{{ number_format($share * 100, 1) }}%</div>
+      @if(($output['breakdown'] ?? '') === 'national')
+        <div class="rounded border bg-white p-5 shadow-sm">
+          <h2 class="text-base font-semibold">National Summary</h2>
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <div class="rounded border bg-gray-50 p-3">
+              <div class="text-sm text-slate-600">SLPP</div>
+              <div class="text-xl font-semibold">{{ number_format(($output['national_mean']['SLPP'] ?? 0) * 100, 1) }}%</div>
             </div>
-          @endforeach
+            <div class="rounded border bg-gray-50 p-3">
+              <div class="text-sm text-slate-600">APC</div>
+              <div class="text-xl font-semibold">{{ number_format(($output['national_mean']['APC'] ?? 0) * 100, 1) }}%</div>
+            </div>
+          </div>
+
+          <div class="mt-3 text-sm text-slate-700">
+            <span class="font-medium">Mean turnout:</span>
+            {{ number_format(($output['mean_turnout'] ?? 0) * 100, 1) }}%
+          </div>
+
+          <p class="mt-3 text-xs text-slate-500">
+            Turnout uses census {{ $output['turnout_census_year'] ?? '' }} and field {{ $output['turnout_field'] ?? '' }}.
+          </p>
         </div>
+      @else
+        <div class="rounded border bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-semibold">District Forecast</h2>
+            <p class="text-xs text-slate-500">
+              Census {{ $output['turnout_census_year'] ?? '' }} · {{ $output['turnout_field'] ?? '' }}
+            </p>
+          </div>
 
-        <div class="mt-4 text-sm text-slate-700 dark:text-gray-300">
-          <span class="font-medium">Mean Turnout:</span>
-          {{ number_format(($output['mean_turnout'] ?? 0) * 100, 1) }}%
+          <div class="overflow-x-auto mt-4">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="border-b text-slate-600">
+                  <th class="py-2 text-left cursor-pointer" wire:click="setSort('name')">District</th>
+                  <th class="py-2 text-left cursor-pointer" wire:click="setSort('slpp_mean')">SLPP</th>
+                  <th class="py-2 text-left cursor-pointer" wire:click="setSort('apc_mean')">APC</th>
+                  <th class="py-2 text-left cursor-pointer" wire:click="setSort('turnout_mean')">Turnout</th>
+                  <th class="py-2 text-left cursor-pointer" wire:click="setSort('others')">Others</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach(($output['districts'] ?? []) as $r)
+                  <tr class="border-b">
+                    <td class="py-2 pr-4">{{ $r['name'] }}</td>
+                    <td class="py-2 pr-4">{{ number_format(($r['slpp_mean'] ?? 0) * 100, 1) }}%</td>
+                    <td class="py-2 pr-4">{{ number_format(($r['apc_mean'] ?? 0) * 100, 1) }}%</td>
+                    <td class="py-2 pr-4">{{ number_format(($r['turnout_mean'] ?? 0) * 100, 1) }}%</td>
+                    <td class="py-2 pr-4">{{ number_format(($r['others'] ?? 0) * 100, 1) }}%</td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+
+          <p class="mt-3 text-xs text-slate-500">
+            Note: Shares are modeled for SLPP/APC only (normalized to 100%). “Others” is context from raw totals.
+          </p>
         </div>
-
-        {{-- Chart + caption --}}
-        <div class="mt-6" wire:ignore>
-          <canvas id="party-means-chart" height="140"></canvas>
-        </div>
-        <p class="mt-2 text-center text-xs text-slate-500 dark:text-gray-400">
-          N = {{ number_format($simulations) }} Monte Carlo runs • α = {{ rtrim(rtrim(number_format($alphaSmoothing,2,'.',''), '0'), '.') }}
-        </p>
-
-        <script>window.__partyMeans = @json($output['national_mean'] ?? []);</script>
-
-        <details class="mt-4">
-          <summary class="cursor-pointer text-indigo-600 text-sm">Show raw JSON</summary>
-          <pre class="mt-2 whitespace-pre-wrap rounded bg-gray-50 p-2 text-xs dark:bg-gray-800">{{ json_encode($output, JSON_PRETTY_PRINT) }}</pre>
-        </details>
-      </div>
+      @endif
     @else
-      <div class="rounded border bg-white p-5 text-sm text-slate-600 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-        No results yet. Set inputs and click <b>Run Simulation</b>.
+      <div class="rounded border bg-white p-5 text-sm text-slate-600 shadow-sm">
+        No results yet. Pick settings and click <b>Run Simulation</b>.
       </div>
     @endif
+
   </section>
 
-  {{-- ================= Right: Brief Docs (Sticky) ================= --}}
+  {{-- Right: Explanation --}}
   <aside class="md:col-span-4">
-    <div class="sticky top-20 rounded border bg-white p-5 shadow-sm text-sm dark:border-gray-800 dark:bg-gray-900">
-      <h3 class="text-base font-semibold text-slate-800 dark:text-gray-100">What you do</h3>
-      <ul class="mt-2 list-disc pl-5 text-slate-700 dark:text-gray-300">
-        <li><b>Pick an election</b> (dataset of parties, priors, turnout).</li>
-        <li><b>Set N</b> = number of <i>Monte Carlo</i> runs (more ⇒ smoother averages).</li>
-        <li><b>Set α</b> (Alpha): stability of party shares (↑α ⇒ less swing).</li>
-        <li>Click <b>Run Simulation</b>.</li>
-      </ul>
+    <div class="sticky top-20 rounded border bg-white p-5 shadow-sm text-sm">
+      <h3 class="text-base font-semibold">How turnout works now</h3>
+      <p class="mt-2 text-slate-700">
+        Because you imported <b>district-level</b> results (no polling stations), turnout is computed as:
+      </p>
+      <p class="mt-2 font-mono text-xs bg-gray-50 border rounded p-2">
+        turnout_rate = total_votes_in_district / population_denominator
+      </p>
+      <p class="mt-2 text-slate-600">
+        Denominator comes from <b>DistrictPopulation</b> for the selected census year (2015/2021).
+      </p>
 
-      <h3 class="mt-5 text-base font-semibold text-slate-800 dark:text-gray-100">What happens</h3>
-      <ol class="mt-2 list-decimal pl-5 text-slate-700 dark:text-gray-300 space-y-1">
-        <li>For each run: party shares are drawn from a <b>Dirichlet(α)</b> (sum = 100%).</li>
-        <li>Turnout is drawn from a <b>Beta</b> distribution (0–1).</li>
-        <li>We repeat this <b>N</b> times and average results.</li>
-      </ol>
+      <h3 class="mt-5 text-base font-semibold">Pooled mode</h3>
+      <p class="mt-2 text-slate-600">
+        Pooled mode includes elections of the <b>same type</b> as the selected election (e.g. presidential),
+        and weights older elections down using a time-decay half-life.
+      </p>
 
-      <h3 class="mt-5 text-base font-semibold text-slate-800 dark:text-gray-100">What you see</h3>
-      <dl class="mt-2 grid grid-cols-[9rem_1fr] gap-y-2">
-        <dt class="font-medium">National mean</dt>
-        <dd class="text-right text-slate-600 dark:text-gray-400">Avg vote share by party across runs.</dd>
-        <dt class="font-medium">Mean turnout</dt>
-        <dd class="text-right text-slate-600 dark:text-gray-400">Avg turnout across runs (0–100%).</dd>
-        <dt class="font-medium">Chart</dt>
-        <dd class="text-right text-slate-600 dark:text-gray-400">Bar chart of party means.</dd>
-        <dt class="font-medium">Caption</dt>
-        <dd class="text-right text-slate-600 dark:text-gray-400">Shows <b>N</b> and <b>α</b> used.</dd>
-      </dl>
-
-      <h3 class="mt-5 text-base font-semibold text-slate-800 dark:text-gray-100">Tips</h3>
-      <ul class="mt-2 list-disc pl-5 text-slate-700 dark:text-gray-300">
-        <li><b>N</b>: start at 1,000. Raise if results look noisy.</li>
-        <li><b>α</b>: 1.0 is neutral. 0.5–2.0 covers most real cases.</li>
-      </ul>
+      <h3 class="mt-5 text-base font-semibold">Two-party focus</h3>
+      <p class="mt-2 text-slate-600">
+        Dirichlet is run on SLPP/APC only (consistent across years). “Others” is shown separately as context.
+      </p>
     </div>
   </aside>
-</div>
 
-@push('scripts')
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script>
-    let partyChart;
-    function buildPartyChart() {
-      const el = document.getElementById('party-means-chart');
-      if (!el || !window.__partyMeans) return;
-      const labels = Object.keys(window.__partyMeans);
-      const data = Object.values(window.__partyMeans).map(v => Number((v * 100).toFixed(1)));
-      if (partyChart) partyChart.destroy(); // why: avoid duplicates after Livewire patch
-      partyChart = new Chart(el.getContext('2d'), {
-        type: 'bar',
-        data: { labels, datasets: [{ label: 'Vote %', data }] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } },
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.parsed.y}%` } } }
-        }
-      });
-    }
-    document.addEventListener('livewire:load', () => {
-      buildPartyChart();
-      Livewire.hook('message.processed', () => {
-        if (document.getElementById('party-means-chart')) buildPartyChart();
-      });
-    });
-  </script>
-@endpush
+</div>

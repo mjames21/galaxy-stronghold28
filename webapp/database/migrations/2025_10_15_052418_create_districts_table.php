@@ -13,12 +13,13 @@ return new class extends Migration
     {
         Schema::create('districts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('region_id')->constrained()->cascadeOnDelete();
-            $table->string('name');
-            $table->string('code')->nullable()->unique();
-            $table->json('geojson')->nullable();
-            $table->unsignedInteger('seats')->default(1); // for PR/FPTP config
+            $table->string('name');                 // e.g. "Bo", "Western Area Urban"
+            $table->string('code', 10)->unique();   // e.g. "BO", "WAU"
+            $table->string('region', 50)->nullable(); // e.g. "South", "North", etc.
             $table->timestamps();
+
+            $table->index('name');
+            $table->index('region');
         });
     }
 
