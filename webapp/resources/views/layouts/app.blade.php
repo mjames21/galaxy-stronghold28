@@ -193,6 +193,19 @@
           <span>Results Import</span>
         </a>
 
+        <a href="{{ route('manage.voter-registry') }}"
+   class="flex items-center gap-2 px-4 py-2 hover:bg-slate-50
+          {{ request()->routeIs('manage.voter-registry') ? 'bg-slate-100 font-semibold border-l-4 border-slate-900' : 'border-l-4 border-transparent' }}">
+  <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 4h16v16H4z" />
+    <path d="M8 8h8" />
+    <path d="M8 12h8" />
+    <path d="M8 16h6" />
+  </svg>
+  <span>Voter Registry</span>
+</a>
+
       </nav>
     </aside>
 
