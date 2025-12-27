@@ -197,30 +197,79 @@
   </section>
 
   {{-- Right: Explanation --}}
-  <aside class="md:col-span-4">
-    <div class="sticky top-20 rounded border bg-white p-5 shadow-sm text-sm">
-      <h3 class="text-base font-semibold">How turnout works now</h3>
+ {{-- Right: About / Model --}}
+<aside class="md:col-span-4">
+  <div class="sticky top-20 rounded border bg-white p-5 shadow-sm text-sm space-y-4">
+
+    <div>
+      <h3 class="text-base font-semibold text-slate-800">About the Forecast Model</h3>
       <p class="mt-2 text-slate-700">
-        Because you imported <b>district-level</b> results (no polling stations), turnout is computed as:
-      </p>
-      <p class="mt-2 font-mono text-xs bg-gray-50 border rounded p-2">
-        turnout_rate = total_votes_in_district / population_denominator
-      </p>
-      <p class="mt-2 text-slate-600">
-        Denominator comes from <b>DistrictPopulation</b> for the selected census year (2015/2021).
-      </p>
-
-      <h3 class="mt-5 text-base font-semibold">Pooled mode</h3>
-      <p class="mt-2 text-slate-600">
-        Pooled mode includes elections of the <b>same type</b> as the selected election (e.g. presidential),
-        and weights older elections down using a time-decay half-life.
-      </p>
-
-      <h3 class="mt-5 text-base font-semibold">Two-party focus</h3>
-      <p class="mt-2 text-slate-600">
-        Dirichlet is run on SLPP/APC only (consistent across years). “Others” is shown separately as context.
+        This module is a <b>planning forecast</b>. It simulates the next election outcome using historical results
+        to estimate likely <b>vote share percentages</b> for SLPP and APC (district or national).
       </p>
     </div>
-  </aside>
+
+    <div class="rounded border bg-slate-50 p-3">
+      <div class="font-semibold text-slate-800">What the model uses</div>
+      <ul class="mt-2 text-xs text-slate-700 list-disc pl-5 space-y-1">
+        <li><b>District results</b> from your Results table (votes by party per district).</li>
+        <li><b>Population denominators</b> from DistrictPopulation (to estimate turnout).</li>
+        <li>Optional: <b>Pooled mode</b> blends elections of the same type with time decay (newer elections matter more).</li>
+      </ul>
+    </div>
+
+    <div class="rounded border bg-slate-50 p-3">
+      <div class="font-semibold text-slate-800">What the model produces</div>
+      <ul class="mt-2 text-xs text-slate-700 list-disc pl-5 space-y-1">
+        <li><b>SLPP %</b> and <b>APC %</b> (two-party share: SLPP + APC = 100%).</li>
+        <li><b>Uncertainty bands</b>: 50% range and 95% range (how wide the simulation spread is).</li>
+        <li><b>Turnout estimate</b> (district votes divided by selected population denominator).</li>
+        <li><b>Others %</b> as context from raw totals (not simulated as a party).</li>
+      </ul>
+    </div>
+
+    <div class="rounded border bg-slate-50 p-3">
+      <div class="font-semibold text-slate-800">How to interpret the ranges</div>
+      <p class="mt-2 text-xs text-slate-700">
+        Each run produces a slightly different outcome. We summarize the runs:
+      </p>
+      <ul class="mt-2 text-xs text-slate-700 list-disc pl-5 space-y-1">
+        <li><b>Mean</b>: average of all runs (your “best estimate”).</li>
+        <li><b>50% range</b>: the middle band (typical outcomes).</li>
+        <li><b>95% range</b>: wider band (almost all outcomes).</li>
+      </ul>
+      <p class="mt-2 text-xs text-slate-600">
+        Wider ranges = more uncertainty/volatility in that district.
+      </p>
+    </div>
+
+    <div class="rounded border bg-slate-50 p-3">
+      <div class="font-semibold text-slate-800">Why “Simulations (N)” matters</div>
+      <p class="mt-2 text-xs text-slate-700">
+        N is how many times we run the forecast. Higher N makes results steadier and ranges more reliable, but takes longer.
+      </p>
+    </div>
+
+    <div class="rounded border border-amber-200 bg-amber-50 p-3">
+      <div class="font-semibold text-amber-900 text-xs">Limits (important)</div>
+      <ul class="mt-2 text-xs text-amber-900 list-disc pl-5 space-y-1">
+        <li>This is not “guaranteed results” — it’s a decision tool.</li>
+        <li>Turnout is estimated from census denominators, not from polling-station registered voters (yet).</li>
+        <li>Only SLPP/APC are simulated (two-party focus). Others is displayed as context.</li>
+      </ul>
+    </div>
+
+    <div class="rounded border bg-slate-50 p-3">
+      <div class="font-semibold text-slate-800">Best way to use it (campaign-style)</div>
+      <ul class="mt-2 text-xs text-slate-700 list-disc pl-5 space-y-1">
+        <li>Use <b>Pooled</b> to stabilize results when you want “trend-informed” forecasts.</li>
+        <li>Use <b>Single</b> to mirror one election baseline closely.</li>
+        <li>Look for <b>districts with tight 95% ranges</b> (more predictable) vs wide ranges (swing districts).</li>
+      </ul>
+    </div>
+
+  </div>
+</aside>
+
 
 </div>
